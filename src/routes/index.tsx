@@ -1,26 +1,56 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Sidebar, type Conversation } from "@/components/app/Sidebar";
 import { ChatInput } from "@/components/app/ChatInput";
 import { ChatThread, EmptyState } from "@/components/app/ChatThread";
 import { AnalyticsPanel } from "@/components/app/AnalyticsPanel";
 import { RecommendationsPanel } from "@/components/app/RecommendationsPanel";
 import { DocumentsPanel } from "@/components/app/DocumentsPanel";
+import { GroupDashboard } from "@/components/app/GroupDashboard";
+import { HeaderControls } from "@/components/app/HeaderControls";
 import { api, type ChatMessage, type Mode } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
+import {
+  loadConversations, saveConversation, deleteConversation as storageDelete,
+  type StoredConversation,
+} from "@/lib/chat-storage";
 import { toast } from "sonner";
-import { AlertTriangle, Sparkles } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/")({ component: App });
 
-const MODE_LABEL: Record<Mode, string> = {
-  chat: "Chat",
-  analytics: "Analytics",
-  recommendations: "Recommendations",
-  documents: "Documents",
-};
-
 function App() {
-  const [mode, setMode] = useState<Mode>("chat");
+  const { user, ready } = useAuth();
+  const { t } = useI18n();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (ready && !user) navigate({ to: "/login" });
+  }, [ready, user]);
+
+  if (!ready || !user) {
+    return <div className="grid h-screen place-items-center bg-background text-sm text-muted-foreground">…</div>;
+  }
+
+  return <Workspace />;
+}
+
+function Workspace() {
+  const { user } = useAuth();
+  const { t, lang } = useI18n();
+  const userEmail = user!.email;
+  const defaultMode: Mode = user!.role === "teacher" ? "chat" : "chat";
+
+  const modeLabel = (m: Mode) => ({
+    chat: t("chat"),
+    analytics: t("analytics"),
+    recommendations: t("recommendations"),
+    documents: t("documents"),
+    group: t("groupDashboard"),
+  })[m];
+
+  const [mode, setMode] = useState<Mode>(defaultMode);
   const [collapsed, setCollapsed] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -28,8 +58,26 @@ function App() {
   const [online, setOnline] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<string | null>(null);
+  const fullConvs = useRef<StoredConversation[]>([]);
 
-  // ping backend
+  // Load conversations on mount / user change
+  useEffect(() => {
+    const all = loadConversations(userEmail);
+    fullConvs.current = all;
+    setConversations(all.map((c) => ({ id: c.id, title: c.title })));
+  }, [userEmail]);
+
+  // Persist active conversation whenever messages change
+  useEffect(() => {
+    if (!activeConv || messages.length === 0) return;
+    const title = (messages.find((m) => m.role === "user")?.content ?? "New chat").slice(0, 30);
+    const conv: StoredConversation = { id: activeConv, title, messages, updatedAt: Date.now() };
+    saveConversation(userEmail, conv);
+    fullConvs.current = loadConversations(userEmail);
+    setConversations(fullConvs.current.map((c) => ({ id: c.id, title: c.title })));
+  }, [messages, activeConv, userEmail]);
+
+  // Ping backend
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
@@ -42,7 +90,6 @@ function App() {
   }, []);
 
   async function streamReply(reply: string) {
-    // simple character-by-character streaming for typing effect
     let acc = "";
     setMessages((m) => [...m, { role: "assistant", content: "" }]);
     const chunkSize = Math.max(2, Math.floor(reply.length / 120));
@@ -69,18 +116,17 @@ function App() {
     setInput("");
     setLoading(true);
 
-    // create / rename conversation
-    if (!activeConv) {
-      const id = crypto.randomUUID();
-      setActiveConv(id);
-      setConversations((c) => [{ id, title: text.slice(0, 36) }, ...c].slice(0, 20));
+    let convId = activeConv;
+    if (!convId) {
+      convId = crypto.randomUUID();
+      setActiveConv(convId);
     }
 
     try {
-      const r = await api.chat(text, mode, next);
+      const r = await api.chat(text, mode, next, user!.role);
       setLoading(false);
       await streamReply(r.reply);
-    } catch (e: any) {
+    } catch {
       setLoading(false);
       const fallback = `I couldn't reach the backend at \`http://localhost:8000\`. Make sure the FastAPI server is running.\n\n**You sent:** ${text}`;
       await streamReply(fallback);
@@ -95,60 +141,73 @@ function App() {
     setMode("chat");
   }
 
-  const modeBadge = useMemo(() => {
-    if (mode === "chat") return "Llama 3.1 · Groq";
-    if (mode === "analytics") return "OULAD Predictor v2";
-    if (mode === "recommendations") return "Course Matcher";
-    return "PDF Retriever";
-  }, [mode]);
+  function selectConversation(id: string) {
+    const c = fullConvs.current.find((x) => x.id === id);
+    if (!c) return;
+    setActiveConv(id);
+    setMessages(c.messages);
+    setMode("chat");
+  }
+
+  function deleteConv(id: string) {
+    storageDelete(userEmail, id);
+    fullConvs.current = loadConversations(userEmail);
+    setConversations(fullConvs.current.map((c) => ({ id: c.id, title: c.title })));
+    if (activeConv === id) { setActiveConv(null); setMessages([]); }
+  }
+
+  const suggestions = useMemo(() => t("suggestions") as string[], [lang]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
       <Sidebar
         mode={mode}
-        onMode={(m) => { setMode(m); }}
+        onMode={setMode}
         collapsed={collapsed}
         onToggle={() => setCollapsed((v) => !v)}
         conversations={conversations}
         activeId={activeConv}
-        onSelectConversation={setActiveConv}
+        onSelectConversation={selectConversation}
         onNewChat={newChat}
+        onDeleteConversation={deleteConv}
       />
 
       <main className="flex h-full min-w-0 flex-1 flex-col">
-        {/* Top bar */}
         <header className="flex h-14 items-center justify-between border-b border-border px-5">
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-sm font-semibold">{MODE_LABEL[mode]}</h1>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
-              <Sparkles className="h-3 w-3 text-primary" />
-              {modeBadge}
-            </span>
+          <h1 className="text-sm font-semibold">{modeLabel(mode)}</h1>
+          <div className="flex items-center gap-3">
+            {!online && (
+              <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-2.5 py-1 text-[12px] text-danger">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {t("backendOffline")}
+              </div>
+            )}
+            <HeaderControls />
           </div>
-          {!online && (
-            <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-2.5 py-1 text-[12px] text-danger">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              Backend offline · localhost:8000
-            </div>
-          )}
         </header>
 
-        {/* Body */}
         {mode === "chat" && (
           <>
             {messages.length === 0
-              ? <EmptyState onSuggest={(s) => send(s)} />
+              ? <EmptyState
+                  onSuggest={(s) => send(s)}
+                  title={t("emptyTitle")}
+                  subtitle={t("emptySubtitle")}
+                  suggestions={suggestions}
+                />
               : <ChatThread messages={messages} loading={loading} />}
             <ChatInput
               value={input}
               onChange={setInput}
               onSubmit={() => input.trim() && send(input.trim())}
               disabled={loading}
+              placeholder={t("inputPlaceholder")}
             />
           </>
         )}
         {mode === "analytics" && <AnalyticsPanel />}
         {mode === "recommendations" && <RecommendationsPanel />}
+        {mode === "group" && <GroupDashboard />}
         {mode === "documents" && (
           <DocumentsPanel
             onAsk={(name) => {
