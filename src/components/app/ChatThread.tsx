@@ -46,20 +46,20 @@ export function ChatThread({
   );
 }
 
-export function EmptyState({ onSuggest }: { onSuggest: (s: string) => void }) {
-  const suggestions = [
-    "Explain Bayes' theorem with an intuition",
-    "Summarize my uploaded lecture notes",
-    "Recommend electives for an ML-focused term",
-  ];
+export function EmptyState({ onSuggest, title, subtitle, suggestions }: {
+  onSuggest: (s: string) => void;
+  title: string;
+  subtitle: string;
+  suggestions: string[];
+}) {
   return (
     <div className="flex flex-1 items-center justify-center px-4">
       <div className="w-full max-w-2xl text-center animate-fade-in-up">
         <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 ring-1 ring-primary/30">
           <span className="font-mono text-base font-semibold text-primary">M</span>
         </div>
-        <h1 className="mt-5 text-2xl font-semibold tracking-tight">How can I help you today?</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Ask anything about your courses, data, or documents.</p>
+        <h1 className="mt-5 text-2xl font-semibold tracking-tight">{title}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
         <div className="mt-7 flex flex-wrap justify-center gap-2">
           {suggestions.map((s) => (
             <button
@@ -75,3 +75,4 @@ export function EmptyState({ onSuggest }: { onSuggest: (s: string) => void }) {
     </div>
   );
 }
+

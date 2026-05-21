@@ -1,18 +1,15 @@
-import { MessageSquare, BarChart3, Target, FolderOpen, PanelLeftClose, PanelLeft, Plus } from "lucide-react";
+import { MessageSquare, BarChart3, Target, FolderOpen, Users, PanelLeftClose, PanelLeft, Plus, Trash2 } from "lucide-react";
 import type { Mode } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
+import { ProfileMenu } from "./ProfileMenu";
 import { cn } from "@/lib/utils";
-
-const items: { id: Mode; label: string; icon: typeof MessageSquare }[] = [
-  { id: "chat", label: "Chat", icon: MessageSquare },
-  { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "recommendations", label: "Recommendations", icon: Target },
-  { id: "documents", label: "Documents", icon: FolderOpen },
-];
 
 export interface Conversation { id: string; title: string }
 
 export function Sidebar({
-  mode, onMode, collapsed, onToggle, conversations, activeId, onSelectConversation, onNewChat,
+  mode, onMode, collapsed, onToggle, conversations, activeId,
+  onSelectConversation, onNewChat, onDeleteConversation,
 }: {
   mode: Mode;
   onMode: (m: Mode) => void;
@@ -22,7 +19,24 @@ export function Sidebar({
   activeId: string | null;
   onSelectConversation: (id: string) => void;
   onNewChat: () => void;
+  onDeleteConversation: (id: string) => void;
 }) {
+  const { t } = useI18n();
+  const { user } = useAuth();
+
+  const items: { id: Mode; label: string; icon: typeof MessageSquare }[] = user?.role === "teacher"
+    ? [
+        { id: "chat", label: t("chat"), icon: MessageSquare },
+        { id: "group", label: t("groupDashboard"), icon: Users },
+        { id: "documents", label: t("documents"), icon: FolderOpen },
+      ]
+    : [
+        { id: "chat", label: t("chat"), icon: MessageSquare },
+        { id: "analytics", label: t("analytics"), icon: BarChart3 },
+        { id: "recommendations", label: t("recommendations"), icon: Target },
+        { id: "documents", label: t("documents"), icon: FolderOpen },
+      ];
+
   return (
     <aside
       className={cn(
@@ -30,7 +44,6 @@ export function Sidebar({
         collapsed ? "w-[64px]" : "w-[240px]",
       )}
     >
-      {/* Logo */}
       <div className="flex h-14 items-center justify-between px-3">
         <div className="flex items-center gap-2 overflow-hidden">
           <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary/15 ring-1 ring-primary/30">
@@ -47,7 +60,6 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* New chat */}
       <div className="px-2">
         <button
           onClick={onNewChat}
@@ -57,11 +69,10 @@ export function Sidebar({
           )}
         >
           <Plus className="h-4 w-4 text-muted-foreground" />
-          {!collapsed && <span>New chat</span>}
+          {!collapsed && <span>{t("newChat")}</span>}
         </button>
       </div>
 
-      {/* Modes */}
       <nav className="mt-4 flex flex-col gap-0.5 px-2">
         {items.map((it) => {
           const active = mode === it.id;
@@ -72,18 +83,14 @@ export function Sidebar({
               onClick={() => onMode(it.id)}
               className={cn(
                 "group relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm transition",
-                active
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-surface-elevated hover:text-foreground",
+                active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-surface-elevated hover:text-foreground",
                 collapsed && "justify-center px-0",
               )}
             >
-              <span
-                className={cn(
-                  "absolute left-0 h-5 w-[2px] rounded-r-full bg-primary transition-opacity",
-                  active ? "opacity-100" : "opacity-0 group-hover:opacity-40",
-                )}
-              />
+              <span className={cn(
+                "absolute left-0 h-5 w-[2px] rounded-r-full bg-primary transition-opacity",
+                active ? "opacity-100" : "opacity-0 group-hover:opacity-40",
+              )} />
               <Icon className={cn("h-4 w-4", active && "text-primary")} />
               {!collapsed && <span className="truncate">{it.label}</span>}
             </button>
@@ -91,45 +98,47 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* Conversations */}
       {!collapsed && (
         <div className="mt-6 flex min-h-0 flex-1 flex-col px-2">
           <div className="px-2 pb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
-            Recent
+            {t("recent")}
           </div>
           <div className="scrollbar-thin flex-1 overflow-y-auto pr-1">
             {conversations.length === 0 && (
-              <div className="px-2 py-3 text-xs text-muted-foreground/60">No conversations yet</div>
+              <div className="px-2 py-3 text-xs text-muted-foreground/60">{t("noConversations")}</div>
             )}
-            {conversations.map((c) => (
-              <button
+            {conversations.slice(0, 8).map((c) => (
+              <div
                 key={c.id}
-                onClick={() => onSelectConversation(c.id)}
                 className={cn(
-                  "block w-full truncate rounded-md px-2.5 py-1.5 text-left text-[13px] transition",
-                  activeId === c.id
-                    ? "bg-surface-elevated text-foreground"
-                    : "text-muted-foreground hover:bg-surface-elevated/60 hover:text-foreground",
+                  "group flex items-center gap-1 rounded-md transition",
+                  activeId === c.id ? "bg-surface-elevated" : "hover:bg-surface-elevated/60",
                 )}
               >
-                {c.title}
-              </button>
+                <button
+                  onClick={() => onSelectConversation(c.id)}
+                  className={cn(
+                    "min-w-0 flex-1 truncate px-2.5 py-1.5 text-left text-[13px] transition",
+                    activeId === c.id ? "text-foreground" : "text-muted-foreground group-hover:text-foreground",
+                  )}
+                >
+                  {c.title}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDeleteConversation(c.id); }}
+                  className="mr-1 grid h-6 w-6 shrink-0 place-items-center rounded text-muted-foreground/60 opacity-0 transition hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
+                  aria-label="Delete conversation"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* User */}
-      <div className={cn("mt-auto flex items-center gap-2.5 border-t border-border p-3", collapsed && "justify-center")}>
-        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface-elevated text-xs font-medium ring-1 ring-border">
-          DK
-        </div>
-        {!collapsed && (
-          <div className="min-w-0">
-            <div className="truncate text-sm font-medium">Derek</div>
-            <div className="truncate text-[11px] text-muted-foreground">Student · Free</div>
-          </div>
-        )}
+      <div className="mt-auto border-t border-border p-2">
+        <ProfileMenu collapsed={collapsed} />
       </div>
     </aside>
   );
