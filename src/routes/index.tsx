@@ -7,6 +7,9 @@ import { AnalyticsPanel } from "@/components/app/AnalyticsPanel";
 import { RecommendationsPanel } from "@/components/app/RecommendationsPanel";
 import { DocumentsPanel } from "@/components/app/DocumentsPanel";
 import { GroupDashboard } from "@/components/app/GroupDashboard";
+import { LectureAnalyzerPanel } from "@/components/app/LectureAnalyzerPanel";
+import { GenerateTasksPanel } from "@/components/app/GenerateTasksPanel";
+import { LearningPlanPanel } from "@/components/app/LearningPlanPanel";
 import { HeaderControls } from "@/components/app/HeaderControls";
 import { api, type ChatMessage, type Mode } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -48,6 +51,9 @@ function Workspace() {
     recommendations: t("recommendations"),
     documents: t("documents"),
     group: t("groupDashboard"),
+    lecture: t("lectureAnalyzer"),
+    tasks: t("generateTasks"),
+    plan: t("learningPlan"),
   })[m];
 
   const [mode, setMode] = useState<Mode>(defaultMode);
@@ -208,6 +214,9 @@ function Workspace() {
         {mode === "analytics" && <AnalyticsPanel />}
         {mode === "recommendations" && <RecommendationsPanel />}
         {mode === "group" && <GroupDashboard />}
+        {mode === "lecture" && <LectureAnalyzerPanel />}
+        {mode === "tasks" && <GenerateTasksPanel />}
+        {mode === "plan" && <LearningPlanPanel />}
         {mode === "documents" && (
           <DocumentsPanel
             onAsk={(name) => {
