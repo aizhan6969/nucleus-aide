@@ -38,8 +38,8 @@ export function ProfileMenu({ collapsed }: { collapsed: boolean }) {
           collapsed && "justify-center",
         )}
       >
-        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface-elevated text-xs font-medium ring-1 ring-border">
-          {initials(user.name)}
+        <div className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-elevated text-xs font-medium ring-1 ring-border">
+          {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : initials(user.name)}
         </div>
         {!collapsed && (
           <div className="min-w-0 text-left">
@@ -52,8 +52,8 @@ export function ProfileMenu({ collapsed }: { collapsed: boolean }) {
       {open && (
         <div className="absolute bottom-full left-0 mb-2 w-60 animate-fade-in-up overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
           <div className="flex items-center gap-3 p-3">
-            <div className="grid h-10 w-10 place-items-center rounded-full bg-surface-elevated text-sm font-medium ring-1 ring-border">
-              {initials(user.name)}
+            <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-surface-elevated text-sm font-medium ring-1 ring-border">
+              {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : initials(user.name)}
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium">{user.name}</div>
