@@ -3,17 +3,19 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
+import { GoogleButton, OrDivider } from "@/components/app/GoogleButton";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
 function LoginPage() {
-  const { login, user } = useAuth();
+  const { login, loginWithGoogle, user } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => { if (user) navigate({ to: "/" }); }, [user]);
 
@@ -29,6 +31,13 @@ function LoginPage() {
     } finally { setLoading(false); }
   }
 
+  async function google() {
+    setError("");
+    setGoogleLoading(true);
+    try { await loginWithGoogle(); }
+    catch (err: any) { setError(err?.message ?? "Error"); setGoogleLoading(false); }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm animate-fade-in-up rounded-2xl border border-border bg-surface/60 p-7">
@@ -40,9 +49,17 @@ function LoginPage() {
           <p className="text-[12px] text-muted-foreground">{t("appSubtitle")}</p>
         </div>
 
-        <form onSubmit={submit} className="mt-7 space-y-4">
+        <div className="mt-7">
+          <GoogleButton onClick={google} loading={googleLoading} label={t("continueWithGoogle")} />
+          <OrDivider label={t("or")} />
+        </div>
+
+        <form onSubmit={submit} className="space-y-4">
           <Field label={t("email")} type="email" value={email} onChange={setEmail} error={error} />
           <Field label={t("password")} type="password" value={password} onChange={setPassword} error={error} />
+          <div className="flex justify-end">
+            <Link to="/forgot-password" className="text-[12px] text-muted-foreground hover:text-primary">{t("forgotPassword")}</Link>
+          </div>
           {error && <div className="text-[12px] text-danger">{error}</div>}
           <button
             type="submit"

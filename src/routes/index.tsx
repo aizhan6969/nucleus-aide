@@ -20,6 +20,7 @@ import {
 } from "@/lib/chat-storage";
 import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
+import { RoleSelectModal } from "@/components/app/RoleSelectModal";
 
 export const Route = createFileRoute("/")({ component: App });
 
@@ -36,7 +37,12 @@ function App() {
     return <div className="grid h-screen place-items-center bg-background text-sm text-muted-foreground">…</div>;
   }
 
-  return <Workspace />;
+  return (
+    <>
+      <Workspace />
+      <RoleSelectModal />
+    </>
+  );
 }
 
 function Workspace() {
