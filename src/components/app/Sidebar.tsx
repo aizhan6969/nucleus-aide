@@ -1,4 +1,4 @@
-import { MessageSquare, BarChart3, Target, FolderOpen, Users, PanelLeftClose, PanelLeft, Plus, Trash2, Brain, ClipboardList, Map } from "lucide-react";
+import { MessageSquare, BarChart3, Target, FolderOpen, PanelLeftClose, PanelLeft, Plus, Trash2, Brain, ClipboardList, Map } from "lucide-react";
 import type { Mode } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -29,7 +29,6 @@ export function Sidebar({
         { id: "chat", label: t("chat"), icon: MessageSquare },
         { id: "lecture", label: t("lectureAnalyzer"), icon: Brain },
         { id: "tasks", label: t("generateTasks"), icon: ClipboardList },
-        { id: "group", label: t("groupDashboard"), icon: Users },
         { id: "documents", label: t("documents"), icon: FolderOpen },
       ]
     : [

@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import {
   loadConversations, saveConversation, deleteConversation as storageDelete,
+  trackActivity,
   type StoredConversation,
 } from "@/lib/chat-storage";
 import { toast } from "sonner";
@@ -31,6 +32,8 @@ function App() {
 
   useEffect(() => {
     if (ready && !user) navigate({ to: "/login" });
+    // Логируем вход
+    if (ready && user) trackActivity("login");
   }, [ready, user]);
 
   if (!ready || !user) {
@@ -49,7 +52,6 @@ function Workspace() {
   const { user } = useAuth();
   const { t, lang } = useI18n();
   const userEmail = user!.email;
-  const defaultMode: Mode = user!.role === "teacher" ? "chat" : "chat";
 
   const modeLabel = (m: Mode) => ({
     chat: t("chat"),
@@ -62,7 +64,7 @@ function Workspace() {
     plan: t("learningPlan"),
   })[m];
 
-  const [mode, setMode] = useState<Mode>(defaultMode);
+  const [mode, setMode] = useState<Mode>("chat");
   const [collapsed, setCollapsed] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -72,24 +74,30 @@ function Workspace() {
   const [activeConv, setActiveConv] = useState<string | null>(null);
   const fullConvs = useRef<StoredConversation[]>([]);
 
-  // Load conversations on mount / user change
+  // ── Загружаем чаты при входе ───────────────────────────────────────────────
   useEffect(() => {
-    const all = loadConversations(userEmail);
-    fullConvs.current = all;
-    setConversations(all.map((c) => ({ id: c.id, title: c.title })));
+    (async () => {
+      const all = await loadConversations(userEmail);
+      fullConvs.current = all;
+      setConversations(all.map((c) => ({ id: c.id, title: c.title })));
+    })();
   }, [userEmail]);
 
-  // Persist active conversation whenever messages change
+  // ── Сохраняем чат при изменении сообщений ─────────────────────────────────
   useEffect(() => {
     if (!activeConv || messages.length === 0) return;
     const title = (messages.find((m) => m.role === "user")?.content ?? "New chat").slice(0, 30);
     const conv: StoredConversation = { id: activeConv, title, messages, updatedAt: Date.now() };
-    saveConversation(userEmail, conv);
-    fullConvs.current = loadConversations(userEmail);
-    setConversations(fullConvs.current.map((c) => ({ id: c.id, title: c.title })));
+
+    (async () => {
+      await saveConversation(userEmail, conv);
+      const all = await loadConversations(userEmail);
+      fullConvs.current = all;
+      setConversations(all.map((c) => ({ id: c.id, title: c.title })));
+    })();
   }, [messages, activeConv, userEmail]);
 
-  // Ping backend
+  // ── Пингуем бэкенд ────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
@@ -97,10 +105,11 @@ function Workspace() {
       if (!cancelled) setOnline(ok);
     };
     check();
-    const t = setInterval(check, 15000);
-    return () => { cancelled = true; clearInterval(t); };
+    const id = setInterval(check, 15000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
+  // ── Стриминг ответа ───────────────────────────────────────────────────────
   async function streamReply(reply: string) {
     let acc = "";
     setMessages((m) => [...m, { role: "assistant", content: "" }]);
@@ -121,6 +130,7 @@ function Workspace() {
     });
   }
 
+  // ── Отправка сообщения ────────────────────────────────────────────────────
   async function send(text: string) {
     const userMsg: ChatMessage = { role: "user", content: text };
     const next = [...messages, userMsg];
@@ -134,6 +144,9 @@ function Workspace() {
       setActiveConv(convId);
     }
 
+    // Логируем активность
+    await trackActivity("chat", { mode });
+
     try {
       const r = await api.chat(text, mode, next, user!.role);
       setLoading(false);
@@ -146,6 +159,7 @@ function Workspace() {
     }
   }
 
+  // ── Новый чат ─────────────────────────────────────────────────────────────
   function newChat() {
     setMessages([]);
     setActiveConv(null);
@@ -153,6 +167,7 @@ function Workspace() {
     setMode("chat");
   }
 
+  // ── Выбрать чат из истории ────────────────────────────────────────────────
   function selectConversation(id: string) {
     const c = fullConvs.current.find((x) => x.id === id);
     if (!c) return;
@@ -161,10 +176,12 @@ function Workspace() {
     setMode("chat");
   }
 
-  function deleteConv(id: string) {
-    storageDelete(userEmail, id);
-    fullConvs.current = loadConversations(userEmail);
-    setConversations(fullConvs.current.map((c) => ({ id: c.id, title: c.title })));
+  // ── Удалить чат ───────────────────────────────────────────────────────────
+  async function deleteConv(id: string) {
+    await storageDelete(userEmail, id);
+    const all = await loadConversations(userEmail);
+    fullConvs.current = all;
+    setConversations(all.map((c) => ({ id: c.id, title: c.title })));
     if (activeConv === id) { setActiveConv(null); setMessages([]); }
   }
 

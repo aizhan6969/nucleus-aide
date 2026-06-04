@@ -35,10 +35,10 @@ export function LectureAnalyzerPanel() {
   const [copied, setCopied] = useState(false);
 
   const sections: Record<Section, { label: string; keys: string[] }> = {
-    summary:  { label: `📋 ${t("summary")}`,       keys: ["summary", "конспект", "обзор"] },
-    test:     { label: `📝 ${t("test")}`,          keys: ["test", "тест", "quiz"] },
-    homework: { label: `🏠 ${t("homework")}`,      keys: ["homework", "домашк", "үй"] },
-    exam:     { label: `🎓 ${t("examQuestions")}`, keys: ["exam", "экзамен", "емтихан"] },
+  summary:  { label: `📋 ${t("summary")}`,       keys: ["summary", "конспект", "обзор", "краткий"] },
+  test:     { label: `📝 ${t("test")}`,          keys: ["test", "тест", "quiz"] },
+  homework: { label: `🏠 ${t("homework")}`,      keys: ["homework", "домашн", "домашк", "үй"] },
+  exam:     { label: `🎓 ${t("examQuestions")}`, keys: ["exam", "экзамен", "емтихан", "вопросы для"] },
   };
 
   async function run() {
@@ -61,9 +61,9 @@ export function LectureAnalyzerPanel() {
   }
 
   const currentContent = reply
-    ? extractSection(reply, sections[tab].keys) || reply
-    : "";
-
+  ? extractSection(reply, sections[tab].keys)
+  : "";
+  
   function copy() {
     navigator.clipboard.writeText(currentContent);
     setCopied(true);

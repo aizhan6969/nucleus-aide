@@ -72,9 +72,9 @@ export function GenerateTasksPanel() {
     }
   }
 
-  const easy = reply ? extractSection(reply, ["easy", "лёгк", "легк", "жеңіл"]) : "";
-  const medium = reply ? extractSection(reply, ["medium", "средн", "орташа"]) : "";
-  const hard = reply ? extractSection(reply, ["hard", "сложн", "қиын"]) : "";
+  const easy = reply ? extractSection(reply, ["easy", "лёгк", "легк", "жеңіл", "light", "low"]) : "";
+  const medium = reply ? extractSection(reply, ["medium", "средн", "орташа", "middle"]) : "";
+  const hard = reply ? extractSection(reply, ["hard", "сложн", "қиын", "difficult", "advanced"]) : "";
 
   return (
     <div className="scrollbar-thin flex-1 overflow-y-auto px-6 py-6">
@@ -115,7 +115,7 @@ export function GenerateTasksPanel() {
 
         {reply && !loading && (
           <div className="mt-8 grid gap-4 animate-in fade-in duration-200 md:grid-cols-3">
-            <LevelCard title={`🟢 ${t("easyLevel")}`}   dot="bg-emerald-500" content={easy || reply} />
+            <LevelCard title={`🟢 ${t("easyLevel")}`}   dot="bg-emerald-500" content={easy} />
             <LevelCard title={`🟡 ${t("mediumLevel")}`} dot="bg-amber-500"   content={medium} />
             <LevelCard title={`🔴 ${t("hardLevel")}`}   dot="bg-red-500"     content={hard} />
           </div>

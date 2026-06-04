@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
@@ -66,10 +66,6 @@ export function ProfileMenu({ collapsed }: { collapsed: boolean }) {
             </span>
           </div>
           <div className="border-t border-border" />
-          <button className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-foreground hover:bg-surface-elevated">
-            <Settings className="h-4 w-4 text-muted-foreground" />
-            {t("settings")}
-          </button>
           <button
             onClick={async () => { await logout(); navigate({ to: "/login" }); }}
             className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-danger hover:bg-danger/10"
