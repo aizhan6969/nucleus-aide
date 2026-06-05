@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, User, Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
+import { gotoMode } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
 function initials(name: string) {
@@ -65,6 +66,21 @@ export function ProfileMenu({ collapsed }: { collapsed: boolean }) {
               {t(user.role === "teacher" ? "teacher" : "student")}
             </span>
           </div>
+          <div className="border-t border-border" />
+          <button
+            onClick={() => { setOpen(false); gotoMode("profile"); }}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] hover:bg-surface-elevated"
+          >
+            <User className="h-4 w-4 text-muted-foreground" />
+            {t("profile")}
+          </button>
+          <button
+            onClick={() => { setOpen(false); gotoMode("settings"); }}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] hover:bg-surface-elevated"
+          >
+            <SettingsIcon className="h-4 w-4 text-muted-foreground" />
+            {t("settings")}
+          </button>
           <div className="border-t border-border" />
           <button
             onClick={async () => { await logout(); navigate({ to: "/login" }); }}

@@ -19,8 +19,8 @@ export function DocumentsPanel({ onAsk }: { onAsk: (docName: string) => void }) 
       const id = crypto.randomUUID();
       setDocs((d) => [...d, { id, name: file.name, status: "uploading", size: file.size }]);
       try {
-        const r = await api.upload(file);
-        setDocs((d) => d.map((x) => x.id === id ? { ...x, id: r.id, status: "ready" } : x));
+        await api.upload(file);
+        setDocs((d) => d.map((x) => x.id === id ? { ...x, status: "ready" } : x));
       } catch (e: any) {
         setDocs((d) => d.map((x) => x.id === id ? { ...x, status: "error" } : x));
         // demo: pretend success
