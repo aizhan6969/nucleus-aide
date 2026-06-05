@@ -10,29 +10,35 @@ import { GroupDashboard } from "@/components/app/GroupDashboard";
 import { LectureAnalyzerPanel } from "@/components/app/LectureAnalyzerPanel";
 import { GenerateTasksPanel } from "@/components/app/GenerateTasksPanel";
 import { LearningPlanPanel } from "@/components/app/LearningPlanPanel";
+import { DashboardPanel } from "@/components/app/DashboardPanel";
+import { TodayPanel } from "@/components/app/TodayPanel";
+import { GoalsPanel } from "@/components/app/GoalsPanel";
+import { CareerPanel } from "@/components/app/CareerPanel";
+import { CalendarPanel } from "@/components/app/CalendarPanel";
+import { AchievementsPanel } from "@/components/app/AchievementsPanel";
+import { ProfilePanel } from "@/components/app/ProfilePanel";
+import { SettingsPanel } from "@/components/app/SettingsPanel";
 import { HeaderControls } from "@/components/app/HeaderControls";
 import { api, type ChatMessage, type Mode } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import {
   loadConversations, saveConversation, deleteConversation as storageDelete,
-  trackActivity,
-  type StoredConversation,
+  trackActivity, type StoredConversation,
 } from "@/lib/chat-storage";
 import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 import { RoleSelectModal } from "@/components/app/RoleSelectModal";
+import { onModeChange } from "@/lib/nav";
 
 export const Route = createFileRoute("/")({ component: App });
 
 function App() {
   const { user, ready } = useAuth();
-  const { t } = useI18n();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (ready && !user) navigate({ to: "/login" });
-    // Логируем вход
     if (ready && user) trackActivity("login");
   }, [ready, user]);
 
@@ -53,18 +59,29 @@ function Workspace() {
   const { t, lang } = useI18n();
   const userEmail = user!.email;
 
-  const modeLabel = (m: Mode) => ({
-    chat: t("chat"),
-    analytics: t("analytics"),
-    recommendations: t("recommendations"),
-    documents: t("documents"),
-    group: t("groupDashboard"),
-    lecture: t("lectureAnalyzer"),
-    tasks: t("generateTasks"),
-    plan: t("learningPlan"),
-  })[m];
+  const modeLabel = (m: Mode): string => {
+    const map: Record<Mode, string> = {
+      dashboard: t("dashboard"),
+      today: t("today"),
+      chat: t("chat"),
+      analytics: t("analytics"),
+      recommendations: t("recommendations"),
+      documents: t("documents"),
+      group: t("groupDashboard"),
+      lecture: t("lectureAnalyzer"),
+      tasks: t("generateTasks"),
+      plan: t("learningPlan"),
+      goals: t("myGoals"),
+      career: t("careerTracker"),
+      calendar: t("smartCalendar"),
+      achievements: t("achievements"),
+      profile: t("profile"),
+      settings: t("settings"),
+    };
+    return map[m];
+  };
 
-  const [mode, setMode] = useState<Mode>("chat");
+  const [mode, setMode] = useState<Mode>("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -74,7 +91,9 @@ function Workspace() {
   const [activeConv, setActiveConv] = useState<string | null>(null);
   const fullConvs = useRef<StoredConversation[]>([]);
 
-  // ── Загружаем чаты при входе ───────────────────────────────────────────────
+  // Listen for cross-component mode changes (ProfileMenu, Dashboard cards)
+  useEffect(() => onModeChange(setMode), []);
+
   useEffect(() => {
     (async () => {
       const all = await loadConversations(userEmail);
@@ -83,12 +102,10 @@ function Workspace() {
     })();
   }, [userEmail]);
 
-  // ── Сохраняем чат при изменении сообщений ─────────────────────────────────
   useEffect(() => {
     if (!activeConv || messages.length === 0) return;
     const title = (messages.find((m) => m.role === "user")?.content ?? "New chat").slice(0, 30);
     const conv: StoredConversation = { id: activeConv, title, messages, updatedAt: Date.now() };
-
     (async () => {
       await saveConversation(userEmail, conv);
       const all = await loadConversations(userEmail);
@@ -97,7 +114,6 @@ function Workspace() {
     })();
   }, [messages, activeConv, userEmail]);
 
-  // ── Пингуем бэкенд ────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
@@ -109,28 +125,18 @@ function Workspace() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  // ── Стриминг ответа ───────────────────────────────────────────────────────
   async function streamReply(reply: string) {
     let acc = "";
     setMessages((m) => [...m, { role: "assistant", content: "" }]);
     const chunkSize = Math.max(2, Math.floor(reply.length / 120));
     for (let i = 0; i < reply.length; i += chunkSize) {
       acc = reply.slice(0, i + chunkSize);
-      setMessages((m) => {
-        const copy = m.slice();
-        copy[copy.length - 1] = { role: "assistant", content: acc };
-        return copy;
-      });
+      setMessages((m) => { const c = m.slice(); c[c.length - 1] = { role: "assistant", content: acc }; return c; });
       await new Promise((r) => setTimeout(r, 12));
     }
-    setMessages((m) => {
-      const copy = m.slice();
-      copy[copy.length - 1] = { role: "assistant", content: reply };
-      return copy;
-    });
+    setMessages((m) => { const c = m.slice(); c[c.length - 1] = { role: "assistant", content: reply }; return c; });
   }
 
-  // ── Отправка сообщения ────────────────────────────────────────────────────
   async function send(text: string) {
     const userMsg: ChatMessage = { role: "user", content: text };
     const next = [...messages, userMsg];
@@ -139,12 +145,8 @@ function Workspace() {
     setLoading(true);
 
     let convId = activeConv;
-    if (!convId) {
-      convId = crypto.randomUUID();
-      setActiveConv(convId);
-    }
+    if (!convId) { convId = crypto.randomUUID(); setActiveConv(convId); }
 
-    // Логируем активность
     await trackActivity("chat", { mode });
 
     try {
@@ -159,7 +161,6 @@ function Workspace() {
     }
   }
 
-  // ── Новый чат ─────────────────────────────────────────────────────────────
   function newChat() {
     setMessages([]);
     setActiveConv(null);
@@ -167,7 +168,6 @@ function Workspace() {
     setMode("chat");
   }
 
-  // ── Выбрать чат из истории ────────────────────────────────────────────────
   function selectConversation(id: string) {
     const c = fullConvs.current.find((x) => x.id === id);
     if (!c) return;
@@ -176,7 +176,6 @@ function Workspace() {
     setMode("chat");
   }
 
-  // ── Удалить чат ───────────────────────────────────────────────────────────
   async function deleteConv(id: string) {
     await storageDelete(userEmail, id);
     const all = await loadConversations(userEmail);
@@ -214,6 +213,15 @@ function Workspace() {
             <HeaderControls />
           </div>
         </header>
+
+        {mode === "dashboard" && <DashboardPanel />}
+        {mode === "today" && <TodayPanel />}
+        {mode === "goals" && <GoalsPanel />}
+        {mode === "career" && <CareerPanel />}
+        {mode === "calendar" && <CalendarPanel />}
+        {mode === "achievements" && <AchievementsPanel />}
+        {mode === "profile" && <ProfilePanel />}
+        {mode === "settings" && <SettingsPanel />}
 
         {mode === "chat" && (
           <>
