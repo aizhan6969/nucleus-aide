@@ -4,6 +4,7 @@ import { Sidebar, type Conversation } from "@/components/app/Sidebar";
 import { ChatInput } from "@/components/app/ChatInput";
 import { ChatThread, EmptyState } from "@/components/app/ChatThread";
 import { AnalyticsPanel } from "@/components/app/AnalyticsPanel";
+import { StudentAnalyticsPanel } from "@/components/app/StudentAnalyticsPanel";
 import { RecommendationsPanel } from "@/components/app/RecommendationsPanel";
 import { DocumentsPanel } from "@/components/app/DocumentsPanel";
 import { GroupDashboard } from "@/components/app/GroupDashboard";
@@ -242,7 +243,7 @@ function Workspace() {
             />
           </>
         )}
-        {mode === "analytics" && <AnalyticsPanel />}
+        {mode === "analytics" && (user!.role === "teacher" ? <AnalyticsPanel /> : <StudentAnalyticsPanel />)}
         {mode === "recommendations" && <RecommendationsPanel />}
         {mode === "group" && <GroupDashboard />}
         {mode === "lecture" && <LectureAnalyzerPanel />}
