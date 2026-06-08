@@ -3,7 +3,7 @@ import { Flame, Target, FileText, MessageSquare, Sparkles, TrendingUp, Calendar 
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
-import { getStreak, greeting, quoteOfTheDay, type Streak } from "@/lib/dashboard-data";
+import { getStreak, greeting, quoteOfTheDay, getActivityDays, lastNDays, type Streak } from "@/lib/dashboard-data";
 import { api, type Mode } from "@/lib/api";
 import { gotoMode } from "@/lib/nav";
 
@@ -15,6 +15,7 @@ export function DashboardPanel() {
   const { user } = useAuth();
   const { lang, t } = useI18n();
   const [streak, setStreak] = useState<Streak>({ current: 0, best: 0, activeToday: false });
+  const [days30, setDays30] = useState<{ date: string; active: boolean }[]>([]);
   const [chats, setChats] = useState<RecentChat[]>([]);
   const [docs, setDocs] = useState<string[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -24,6 +25,7 @@ export function DashboardPanel() {
     if (!user) return;
     (async () => {
       setStreak(await getStreak(user.id));
+      getActivityDays(user.id, 30).then((s) => setDays30(lastNDays(s, 30)));
 
       const { data: chatRows } = await supabase
         .from("chats").select("id, title, updated_at")
@@ -61,14 +63,23 @@ export function DashboardPanel() {
               </h1>
               <p className="mt-2 max-w-lg text-sm text-muted-foreground">{quoteOfTheDay(lang)}</p>
             </div>
-            <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-elevated/60 px-4 py-3">
-              <Flame className={streak.current > 0 ? "h-6 w-6 text-[oklch(0.72_0.18_55)]" : "h-6 w-6 text-muted-foreground/50"} />
-              <div>
-                <div className="text-2xl font-semibold leading-none">{streak.current}</div>
-                <div className="mt-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-                  {t("dayStreak")} · {t("best")} {streak.best}
+            <div className="flex flex-col items-end gap-2 rounded-xl border border-border bg-surface-elevated/60 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <Flame className={streak.current > 0 ? "h-6 w-6 text-[oklch(0.72_0.18_55)]" : "h-6 w-6 text-muted-foreground/50"} />
+                <div>
+                  <div className="text-2xl font-semibold leading-none">{streak.current}</div>
+                  <div className="mt-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                    {t("dayStreak")} · {t("best")} {streak.best}
+                  </div>
                 </div>
               </div>
+              {days30.length > 0 && (
+                <div className="flex gap-[2px]" title={streak.current > 0 ? t("keepGoing").replace("{n}", String(streak.current)) : t("startToday")}>
+                  {days30.map((d) => (
+                    <div key={d.date} className={`h-3 w-1.5 rounded-sm ${d.active ? "bg-primary" : "bg-surface-elevated"}`} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
