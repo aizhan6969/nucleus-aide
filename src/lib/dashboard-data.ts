@@ -2,43 +2,45 @@ import { supabase } from "./supabase";
 
 export type Streak = { current: number; best: number; activeToday: boolean };
 
-/** Compute consecutive-day streak from student_activity rows. */
-export async function getStreak(userId: string): Promise<Streak> {
+/** YYYY-MM-DD set of unique active days in the last `days` window. */
+export async function getActivityDays(
+  userId: string,
+  days = 365,
+): Promise<Set<string>> {
   const since = new Date();
-  since.setDate(since.getDate() - 365);
+  since.setDate(since.getDate() - days);
   const { data, error } = await supabase
     .from("student_activity")
     .select("created_at")
     .eq("student_id", userId)
     .gte("created_at", since.toISOString())
     .order("created_at", { ascending: false });
-
-  if (error || !data) return { current: 0, best: 0, activeToday: false };
-
-  // unique YYYY-MM-DD set
-  const days = new Set<string>();
+  const set = new Set<string>();
+  if (error || !data) return set;
   for (const row of data) {
-    const d = new Date(row.created_at as string);
-    days.add(d.toISOString().slice(0, 10));
+    set.add(new Date(row.created_at as string).toISOString().slice(0, 10));
   }
+  return set;
+}
+
+/** Compute consecutive-day streak from student_activity rows. */
+export async function getStreak(userId: string): Promise<Streak> {
+  const days = await getActivityDays(userId, 365);
   if (days.size === 0) return { current: 0, best: 0, activeToday: false };
 
   const today = new Date().toISOString().slice(0, 10);
   const activeToday = days.has(today);
 
-  // current streak
   let current = 0;
   const cursor = new Date();
-  if (!activeToday) cursor.setDate(cursor.getDate() - 1); // streak still valid if yesterday
+  if (!activeToday) cursor.setDate(cursor.getDate() - 1);
   while (days.has(cursor.toISOString().slice(0, 10))) {
     current += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
 
-  // best streak over the year window
   const sorted = [...days].sort();
-  let best = 0;
-  let run = 0;
+  let best = 0, run = 0;
   let prev: Date | null = null;
   for (const s of sorted) {
     const d = new Date(s);
@@ -48,6 +50,18 @@ export async function getStreak(userId: string): Promise<Streak> {
     prev = d;
   }
   return { current, best, activeToday };
+}
+
+/** Returns last N days as [{date, active}] oldest→newest. */
+export function lastNDays(active: Set<string>, n: number) {
+  const out: { date: string; active: boolean }[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const k = d.toISOString().slice(0, 10);
+    out.push({ date: k, active: active.has(k) });
+  }
+  return out;
 }
 
 const QUOTES = [
